@@ -17,9 +17,8 @@ const App: React.FC = () => {
   const initSystem = async () => {
     try {
       );
-          audioService.init().catch(() => console.log('Audio init skipped'));
-    audioService.resume().catch(() => console.log('Audio resume skipped'));
-      
+await audioService.init();
+     await audioService.resume();      
       // Request Camera
       try {
           const s = await navigator.mediaDevices.getUserMedia({ 
