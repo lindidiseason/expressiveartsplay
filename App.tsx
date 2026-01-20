@@ -16,8 +16,9 @@ const App: React.FC = () => {
 
   const initSystem = async () => {
     try {
-      await audioService.init();
-      await audioService.resume();
+      );
+          audioService.init().catch(() => console.log('Audio init skipped'));
+    audioService.resume().catch(() => console.log('Audio resume skipped'));
       
       // Request Camera
       try {
