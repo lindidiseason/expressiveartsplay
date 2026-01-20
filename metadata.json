@@ -1,0 +1,8 @@
+{
+  "name": "SENSORIUM | GENESIS",
+  "description": "A high-fidelity audio-visual exploration suite featuring procedural audio synthesis, temporal video manipulation, and generative art.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
