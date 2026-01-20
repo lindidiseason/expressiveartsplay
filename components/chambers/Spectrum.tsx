@@ -86,7 +86,10 @@ const Spectrum: React.FC = () => {
     };
 
     const initMediaPipe = () => {
+        if (!isMounted) return;
+        
         if ((window as any).Hands) {
+            console.log("Initializing Hands...");
             hands = new (window as any).Hands({locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
             hands.setOptions({
                 maxNumHands: 2,
@@ -135,7 +138,19 @@ const Spectrum: React.FC = () => {
     };
 
     initParticles(canvas.width, canvas.height);
-    initMediaPipe();
+
+    // Wait for MediaPipe to load if not ready
+    let mpInterval: any;
+    if ((window as any).Hands) {
+        initMediaPipe();
+    } else {
+        mpInterval = setInterval(() => {
+            if ((window as any).Hands) {
+                clearInterval(mpInterval);
+                initMediaPipe();
+            }
+        }, 500);
+    }
 
     const render = () => {
       const cvs = canvasRef.current;
@@ -273,6 +288,7 @@ const Spectrum: React.FC = () => {
 
     return () => {
         isMounted = false;
+        clearInterval(mpInterval);
         cancelAnimationFrame(animationId);
         if(camera) {
             try { camera.stop(); } catch(e) {}

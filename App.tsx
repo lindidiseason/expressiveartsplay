@@ -15,28 +15,30 @@ const App: React.FC = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   const initSystem = async () => {
+    // 1. Init Audio Immediately (Sync where possible for iOS)
     try {
-      );
-await audioService.init();
-     await audioService.resume();      
-      // Request Camera
-      try {
-          const s = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              width: { ideal: 1280 }, 
-              height: { ideal: 720 },
-              facingMode: 'user' 
-            } 
-          });
-          setStream(s);
-      } catch (err) {
-          console.warn("Camera access denied or unavailable", err);
-      }
-      
-      setStarted(true);
+      audioService.init();
+      await audioService.resume();
     } catch (e) {
-      console.error("Initialization failed", e);
+      console.warn("Audio initialization warning:", e);
     }
+
+    // 2. Request Camera
+    try {
+        const s = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 },
+            facingMode: 'user' 
+          } 
+        });
+        setStream(s);
+    } catch (err) {
+        console.warn("Camera access denied or unavailable", err);
+    }
+    
+    // 3. Start App regardless of success/failure of peripherals
+    setStarted(true);
   };
 
   return (

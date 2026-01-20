@@ -48,59 +48,77 @@ const TattooInk: React.FC<{ stream: MediaStream | null }> = ({ stream }) => {
     // We store 'lastNoteIndex' to check for changes
     const pointers = new Map<number, {x: number, y: number, vx: number, vy: number, lastNoteIndex: number}>();
 
-    if ((window as any).Hands) {
-        hands = new (window as any).Hands({locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({ 
-            maxNumHands: 2, 
-            minDetectionConfidence: 0.5, 
-            minTrackingConfidence: 0.5,
-            modelComplexity: 0 
-        });
+    const onResults = (results: any) => {
+        if (!canvasRef.current) return;
         
-        hands.onResults((results: any) => {
-            if (!canvasRef.current) return;
-            
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const width = canvasRef.current.width;
-                const height = canvasRef.current.height;
-                const noteHeight = height / SCALE_INTERVALS.length;
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const width = canvasRef.current.width;
+            const height = canvasRef.current.height;
+            const noteHeight = height / SCALE_INTERVALS.length;
 
-                results.multiHandLandmarks.forEach((landmarks: any, handIndex: number) => {
-                    const idx = 8; // Index finger
-                    const lm = landmarks[idx];
-                    const x = (1 - lm.x) * width;
-                    const y = lm.y * height;
-                    
-                    const id = handIndex; 
-                    const prev = pointers.get(id);
-                    const vx = prev ? x - prev.x : 0;
-                    const vy = prev ? y - prev.y : 0;
+            results.multiHandLandmarks.forEach((landmarks: any, handIndex: number) => {
+                const idx = 8; // Index finger
+                const lm = landmarks[idx];
+                const x = (1 - lm.x) * width;
+                const y = lm.y * height;
+                
+                const id = handIndex; 
+                const prev = pointers.get(id);
+                const vx = prev ? x - prev.x : 0;
+                const vy = prev ? y - prev.y : 0;
 
-                    // Calculate current note index
-                    const invertedY = height - y;
-                    const currentNoteIndex = Math.min(SCALE_INTERVALS.length - 1, Math.max(0, Math.floor(invertedY / noteHeight)));
+                // Calculate current note index
+                const invertedY = height - y;
+                const currentNoteIndex = Math.min(SCALE_INTERVALS.length - 1, Math.max(0, Math.floor(invertedY / noteHeight)));
 
-                    // Keep lastNoteIndex from previous frame, or init with current
-                    const lastNoteIndex = prev ? prev.lastNoteIndex : currentNoteIndex;
+                // Keep lastNoteIndex from previous frame, or init with current
+                const lastNoteIndex = prev ? prev.lastNoteIndex : currentNoteIndex;
 
-                    pointers.set(id, {x, y, vx, vy, lastNoteIndex});
-                });
-            } else {
-               if(Math.random() > 0.9) pointers.clear();
-            }
-        });
-
-        const video = videoRef.current;
-        if (video && (window as any).Camera) {
-            camera = new (window as any).Camera(video, {
-                onFrame: async () => { 
-                    if (!isMounted || !hands) return;
-                    if (hands && video) await hands.send({image: video}); 
-                },
-                width: 640, height: 480
+                pointers.set(id, {x, y, vx, vy, lastNoteIndex});
             });
-            camera.start();
+        } else {
+            if(Math.random() > 0.9) pointers.clear();
         }
+    };
+
+    const initMediaPipe = () => {
+        if (!isMounted) return;
+        if ((window as any).Hands) {
+            hands = new (window as any).Hands({locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+            hands.setOptions({ 
+                maxNumHands: 2, 
+                minDetectionConfidence: 0.5, 
+                minTrackingConfidence: 0.5,
+                modelComplexity: 0 
+            });
+            
+            hands.onResults(onResults);
+
+            const video = videoRef.current;
+            if (video && (window as any).Camera) {
+                camera = new (window as any).Camera(video, {
+                    onFrame: async () => { 
+                        if (!isMounted || !hands) return;
+                        if (hands && video) await hands.send({image: video}); 
+                    },
+                    width: 640, height: 480
+                });
+                camera.start();
+            }
+        }
+    };
+
+    // Wait for MediaPipe to load
+    let mpInterval: any;
+    if ((window as any).Hands) {
+        initMediaPipe();
+    } else {
+        mpInterval = setInterval(() => {
+            if ((window as any).Hands) {
+                clearInterval(mpInterval);
+                initMediaPipe();
+            }
+        }, 500);
     }
 
     const render = () => {
@@ -280,6 +298,7 @@ const TattooInk: React.FC<{ stream: MediaStream | null }> = ({ stream }) => {
 
     return () => {
         isMounted = false;
+        clearInterval(mpInterval);
         cancelAnimationFrame(animationId);
         const cvs = canvasRef.current;
         if (cvs) {
